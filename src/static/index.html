@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 日报生产台</title>
+<style>
+  :root {
+    --bg: #f6f3ee;
+    --surface: #fffdf8;
+    --surface-2: #eee8dd;
+    --line: #ddd3c5;
+    --line-strong: #c9bbaa;
+    --text: #20242b;
+    --muted: #747069;
+    --accent: #c84c2d;
+    --accent-soft: #fff0e8;
+    --blue: #2767c7;
+    --green: #28764d;
+    --yellow: #a76e16;
+    --red: #b83a30;
+    --shadow: 0 14px 44px rgba(86, 65, 42, .08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", Arial, sans-serif;
+    line-height: 1.6;
+  }
+  button, input, textarea, select {
+    font: inherit;
+  }
+  button {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--line-strong); }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.ghost {
+    background: transparent;
+  }
+  button.danger {
+    color: var(--red);
+    border-color: color-mix(in srgb, var(--red) 35%, var(--line));
+  }
+  button:disabled {
+    opacity: .55;
+    cursor: wait;
+  }
+  input, textarea, select {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 9px 10px;
+    outline: none;
+  }
+  textarea {
+    min-height: 94px;
+    resize: vertical;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+  a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(12px);
+  }
+  .topbar-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 14px 22px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: auto;
+  }
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+  }
+  .brand-title {
+    font-weight: 800;
+    letter-spacing: .01em;
+  }
+  .brand-subtitle {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .nav {
+    display: flex;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 4px;
+    gap: 4px;
+  }
+  .nav button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 8px 13px;
+  }
+  .nav button.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 8px rgba(60, 45, 28, .08);
+  }
+  #conn-status {
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--muted);
+  }
+  #conn-status.connected { background: var(--green); }
+  #conn-status.error { background: var(--red); }
+  main {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 22px;
+  }
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .metric-label {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .metric-value {
+    display: block;
+    font-size: 27px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-top: 5px;
+  }
+  .view { display: none; }
+  .view.active { display: block; }
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .toolbar > * {
+    width: auto;
+  }
+  .toolbar input, .toolbar select {
+    min-width: 190px;
+  }
+  .layout-two {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .layout-wide {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    gap: 16px;
+    align-items: start;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+    box-shadow: var(--shadow);
+  }
+  .side-stack {
+    display: grid;
+    gap: 16px;
+  }
+  .panel h2 {
+    margin: 0 0 14px;
+    font-size: 18px;
+  }
+  .panel h3 {
+    margin: 0 0 10px;
+    font-size: 15px;
+  }
+  .field {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .field label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .item-list {
+    display: grid;
+    gap: 10px;
+  }
+  .feed-item, .cluster-item, .candidate-item, .issue-item {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .feed-item.unread {
+    border-left: 4px solid var(--blue);
+  }
+  .feed-item.read {
+    opacity: .72;
+  }
+  .item-head {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .item-title {
+    font-weight: 750;
+    line-height: 1.45;
+    margin-right: auto;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    margin: 7px 0;
+  }
+  .tag, .status, .score {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+  .tag.category { color: var(--accent); background: var(--accent-soft); }
+  .status.selected { color: var(--green); background: color-mix(in srgb, var(--green) 12%, var(--surface)); }
+  .status.ignored { color: var(--red); background: color-mix(in srgb, var(--red) 10%, var(--surface)); }
+  .score.high { color: var(--green); }
+  .score.mid { color: var(--yellow); }
+  .score.low { color: var(--red); }
+  .summary {
+    color: var(--muted);
+    font-size: 13px;
+    margin-top: 8px;
+  }
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+  }
+  .inline-check {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--muted);
+    font-size: 13px;
+    margin: 4px 0 12px;
+  }
+  .inline-check input {
+    width: auto;
+  }
+  .analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .breakdown {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .analysis-badge.deepseek {
+    color: var(--green);
+    background: color-mix(in srgb, var(--green) 12%, var(--surface));
+  }
+  .analysis-badge.rule {
+    color: var(--yellow);
+    background: color-mix(in srgb, var(--yellow) 12%, var(--surface));
+  }
+  .error-text {
+    color: var(--red);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .edit-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 150px;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .cluster-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 14px;
+    align-items: start;
+  }
+  .source-list {
+    display: grid;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .source-list a {
+    overflow-wrap: anywhere;
+  }
+  .empty {
+    color: var(--muted);
+    border: 1px dashed var(--line-strong);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+  }
+  .issue-preview {
+    display: grid;
+    gap: 10px;
+  }
+  .export-box {
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+    border-radius: 8px;
+    padding: 14px;
+    overflow-wrap: anywhere;
+  }
+  .notice {
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .toast {
+    position: fixed;
+    right: 22px;
+    bottom: 22px;
+    background: var(--text);
+    color: #fff;
+    border-radius: 8px;
+    padding: 10px 14px;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: .25s;
+    z-index: 50;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (max-width: 980px) {
+    .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .layout-two, .layout-wide { grid-template-columns: 1fr; }
+    .cluster-body { grid-template-columns: 1fr; }
+    .topbar-inner { flex-wrap: wrap; }
+    .nav { order: 3; width: 100%; }
+    .nav button { flex: 1; }
+  }
+  @media (max-width: 620px) {
+    main { padding: 14px; }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .toolbar > * { width: 100%; }
+    .toolbar input, .toolbar select { min-width: 0; }
+    .edit-grid { grid-template-columns: 1fr; }
+    .analysis-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">AI</div>
+      <div>
+        <div class="brand-title">AI 日报生产台</div>
+        <div class="brand-subtitle">采集 · 初筛 · 复核 · 成稿</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <button class="active" data-view="feed" onclick="switchView('feed')">信息流</button>
+      <button data-view="review" onclick="switchView('review')">筛选台</button>
+      <button data-view="issue" onclick="switchView('issue')">日报生成</button>
+    </nav>
+    <div id="conn-status" title="实时连接"></div>
+  </div>
+</header>
+
+<main>
+  <section class="metrics">
+    <div class="metric"><span class="metric-label">信息流</span><span class="metric-value" id="metric-items">0</span></div>
+    <div class="metric"><span class="metric-label">候选</span><span class="metric-value" id="metric-candidates">0</span></div>
+    <div class="metric"><span class="metric-label">事件</span><span class="metric-value" id="metric-clusters">0</span></div>
+    <div class="metric"><span class="metric-label">入选</span><span class="metric-value" id="metric-selected">0</span></div>
+    <div class="metric"><span class="metric-label">日报</span><span class="metric-value" id="metric-issues">0</span></div>
+    <div class="metric"><span class="metric-label">来源</span><span class="metric-value" id="metric-sources">0</span></div>
+  </section>
+
+  <section id="view-feed" class="view active">
+    <div class="toolbar">
+      <select id="feed-source" onchange="loadFeed()"><option value="">全部来源</option></select>
+      <select id="feed-filter" onchange="loadFeed()">
+        <option value="">全部内容</option>
+        <option value="unread">未读</option>
+        <option value="starred">收藏</option>
+      </select>
+      <input id="feed-search" type="search" placeholder="搜索标题 / 摘要" oninput="debouncedLoadFeed()">
+      <button class="primary" onclick="loadFeed()">刷新</button>
+      <button onclick="backfillSummaries(this)">中文化最近简介</button>
+    </div>
+    <div id="feed-list" class="item-list"></div>
+  </section>
+
+  <section id="view-review" class="view">
+    <div class="layout-two">
+      <aside class="side-stack">
+        <div class="panel">
+          <h2>粘贴导入</h2>
+          <div class="field">
+            <label for="import-title">标题</label>
+            <input id="import-title" placeholder="例如：某公司发布新模型">
+          </div>
+          <div class="field">
+            <label for="import-url">来源链接</label>
+            <input id="import-url" placeholder="https://...">
+          </div>
+          <div class="field">
+            <label for="import-summary">短摘要</label>
+            <textarea id="import-summary" placeholder="一句话概括核心信息"></textarea>
+          </div>
+          <div class="field">
+            <label for="import-content">正文摘录 / Markdown</label>
+            <textarea id="import-content" placeholder="粘贴网页正文、群友线索或 Markdown"></textarea>
+          </div>
+          <div class="field">
+            <label for="import-media">媒体链接</label>
+            <textarea id="import-media" placeholder="每行一个图片或视频链接"></textarea>
+          </div>
+          <button class="primary" onclick="importCandidate()">导入并初筛</button>
+        </div>
+
+        <div class="panel">
+          <h2>DeepSeek 设置</h2>
+          <div class="notice" id="deepseek-status">未加载</div>
+          <label class="inline-check">
+            <input id="deepseek-enabled" type="checkbox">
+            启用 DeepSeek 分析
+          </label>
+          <div class="field">
+            <label for="deepseek-key">API key</label>
+            <input id="deepseek-key" type="password" placeholder="留空则保留现有 key">
+          </div>
+          <div class="field">
+            <label for="deepseek-base-url">Base URL</label>
+            <input id="deepseek-base-url" placeholder="https://api.deepseek.com">
+          </div>
+          <div class="field">
+            <label for="deepseek-analysis-model">分析模型</label>
+            <input id="deepseek-analysis-model" placeholder="deepseek-v4-flash">
+          </div>
+          <div class="field">
+            <label for="deepseek-draft-model">成稿模型</label>
+            <input id="deepseek-draft-model" placeholder="deepseek-v4-pro">
+          </div>
+          <div class="notice">API key 会明文保存在本机 SQLite。</div>
+          <div class="actions">
+            <button class="primary" onclick="saveDeepSeekSettings()">保存设置</button>
+            <button onclick="testDeepSeek()">测试连接</button>
+          </div>
+          <div id="deepseek-test-result" class="summary"></div>
+        </div>
+      </aside>
+
+      <div class="review-main">
+        <div class="toolbar">
+          <select id="cluster-status" onchange="loadClusters()">
+            <option value="">全部状态</option>
+            <option value="candidate">候选</option>
+            <option value="pending">待判断</option>
+            <option value="selected">入选</option>
+            <option value="ignored">忽略</option>
+            <option value="drafted">已成稿</option>
+          </select>
+          <select id="cluster-category" onchange="loadClusters()"></select>
+          <button onclick="loadReview()">刷新筛选台</button>
+          <button onclick="runBatchAnalysis('unreviewed', this)">批量重分析未复核</button>
+          <button onclick="rebuildClusters(this)">重聚合未确认事件</button>
+        </div>
+        <div id="cluster-list" class="item-list"></div>
+
+        <div class="panel" style="margin-top:16px">
+          <h2>原始候选</h2>
+          <div id="candidate-list" class="item-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-issue" class="view">
+    <div class="layout-wide">
+      <div>
+        <div class="panel">
+          <h2>今日入选</h2>
+          <div id="selected-list" class="issue-preview"></div>
+        </div>
+        <div class="panel" style="margin-top:16px">
+          <h2>历史日报</h2>
+          <div id="issue-list" class="item-list"></div>
+        </div>
+      </div>
+      <aside class="panel">
+        <h2>生成日报</h2>
+        <div class="field">
+          <label for="issue-date">日期</label>
+          <input id="issue-date" type="date">
+        </div>
+        <button class="primary" onclick="generateIssue()">生成 Markdown 和 HTML</button>
+        <div id="export-result" style="margin-top:14px"></div>
+      </aside>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api';
+let sources = [];
+let clusters = [];
+let categories = [];
+let feedTimer;
+let deepseekSettings = null;
+
+function $(id) { return document.getElementById(id); }
+
+async function fetchJSON(url, opts = {}) {
+  const response = await fetch(url, opts);
+  if (!response.ok) {
+    let message = response.statusText;
+    try {
+      const data = await response.json();
+      message = data.detail || message;
+    } catch (_) {}
+    throw new Error(message);
+  }
+  return response.json();
+}
+
+function toast(message) {
+  const el = $('toast');
+  el.textContent = message;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+function escapeHtml(value) {
+  const div = document.createElement('div');
+  div.textContent = value == null ? '' : String(value);
+  return div.innerHTML;
+}
+
+function attr(value) {
+  return escapeHtml(value).replace(/"/g, '&quot;');
+}
+
+function fmtDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function statusLabel(status) {
+  return {
+    pending: '待判断',
+    ignored: '忽略',
+    candidate: '候选',
+    selected: '入选',
+    drafted: '已成稿'
+  }[status] || status;
+}
+
+function scoreClass(score) {
+  if (score >= 70) return 'high';
+  if (score >= 45) return 'mid';
+  return 'low';
+}
+
+function providerLabel(provider) {
+  return provider === 'deepseek' ? 'DeepSeek' : '规则';
+}
+
+function renderBreakdown(breakdown) {
+  const entries = Object.entries(breakdown || {});
+  if (!entries.length) return '<div class="notice">暂无评分拆解</div>';
+  return `<div class="analysis-grid">${entries.map(([key, value]) => `
+    <div class="breakdown"><span>${escapeHtml(key)}</span><strong>${escapeHtml(value)}</strong></div>
+  `).join('')}</div>`;
+}
+
+function setBusy(button, busy, label) {
+  if (!button) return;
+  if (busy) {
+    button.dataset.label = button.textContent;
+    button.textContent = label || '处理中';
+    button.disabled = true;
+  } else {
+    button.textContent = button.dataset.label || button.textContent;
+    button.disabled = false;
+  }
+}
+
+function switchView(view) {
+  document.querySelectorAll('.nav button').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  $(`view-${view}`).classList.add('active');
+  if (view === 'feed') loadFeed();
+  if (view === 'review') loadReview();
+  if (view === 'issue') loadIssueView();
+}
+
+async function loadStats() {
+  const [stats, items] = await Promise.all([
+    fetchJSON(`${API}/daily/stats`),
+    fetchJSON(`${API}/items?limit=200`)
+  ]);
+  categories = stats.categories || [];
+  $('metric-items').textContent = items.items.length;
+  $('metric-candidates').textContent = stats.candidates;
+  $('metric-clusters').textContent = stats.clusters;
+  $('metric-selected').textContent = stats.selected;
+  $('metric-issues').textContent = stats.issues;
+  $('metric-sources').textContent = sources.length;
+  fillCategorySelect();
+}
+
+async function loadSources() {
+  const data = await fetchJSON(`${API}/sources`);
+  sources = data.sources || [];
+  const select = $('feed-source');
+  select.innerHTML = '<option value="">全部来源</option>';
+  sources.forEach(source => {
+    const option = document.createElement('option');
+    option.value = source.id;
+    option.textContent = source.name;
+    select.appendChild(option);
+  });
+}
+
+async function loadDeepSeekSettings() {
+  const data = await fetchJSON(`${API}/deepseek/settings`);
+  deepseekSettings = data.settings || {};
+  $('deepseek-enabled').checked = !!deepseekSettings.enabled;
+  $('deepseek-base-url').value = deepseekSettings.base_url || 'https://api.deepseek.com';
+  $('deepseek-analysis-model').value = deepseekSettings.analysis_model || 'deepseek-v4-flash';
+  $('deepseek-draft-model').value = deepseekSettings.draft_model || 'deepseek-v4-pro';
+  $('deepseek-key').value = '';
+  const keyText = deepseekSettings.has_api_key ? `已保存 ${deepseekSettings.api_key_masked}` : '未保存 API key';
+  $('deepseek-status').textContent = `${deepseekSettings.enabled ? '已启用' : '未启用'} · ${keyText}`;
+}
+
+async function saveDeepSeekSettings() {
+  const payload = {
+    enabled: $('deepseek-enabled').checked,
+    base_url: $('deepseek-base-url').value.trim(),
+    analysis_model: $('deepseek-analysis-model').value.trim(),
+    draft_model: $('deepseek-draft-model').value.trim()
+  };
+  const key = $('deepseek-key').value.trim();
+  if (key) payload.api_key = key;
+  const data = await fetchJSON(`${API}/deepseek/settings`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  deepseekSettings = data.settings || {};
+  await loadDeepSeekSettings();
+  toast('DeepSeek 设置已保存');
+}
+
+async function testDeepSeek() {
+  $('deepseek-test-result').textContent = '正在测试连接...';
+  try {
+    const data = await fetchJSON(`${API}/deepseek/test`, { method: 'POST' });
+    $('deepseek-test-result').textContent = `${data.model} · ${data.response}`;
+    toast('DeepSeek 连接正常');
+  } catch (error) {
+    $('deepseek-test-result').innerHTML = `<span class="error-text">${escapeHtml(error.message)}</span>`;
+  }
+}
+
+function fillCategorySelect() {
+  const select = $('cluster-category');
+  if (!select || select.dataset.ready === '1' || !categories.length) return;
+  select.innerHTML = '<option value="">全部栏目</option>';
+  categories.forEach(category => {
+    const option = document.createElement('option');
+    option.value = category;
+    option.textContent = category;
+    select.appendChild(option);
+  });
+  select.dataset.ready = '1';
+}
+
+function debouncedLoadFeed() {
+  clearTimeout(feedTimer);
+  feedTimer = setTimeout(loadFeed, 250);
+}
+
+async function loadFeed() {
+  const source = $('feed-source').value;
+  const filter = $('feed-filter').value;
+  const query = $('feed-search').value.trim();
+  let url = `${API}/items?limit=120`;
+  if (source) url += `&source_id=${source}`;
+  if (filter === 'unread') url += '&is_read=false';
+  if (filter === 'starred') url += '&is_starred=true';
+  let items;
+  if (query) {
+    const data = await fetchJSON(`${API}/items/search?q=${encodeURIComponent(query)}&limit=120`);
+    items = data.items || [];
+    if (source) items = items.filter(item => String(item.source_id) === source);
+    if (filter === 'unread') items = items.filter(item => !item.is_read);
+    if (filter === 'starred') items = items.filter(item => item.is_starred);
+  } else {
+    const data = await fetchJSON(url);
+    items = data.items || [];
+  }
+  renderFeed(items);
+  await loadStats();
+}
+
+function renderFeed(items) {
+  const list = $('feed-list');
+  if (!items.length) {
+    list.innerHTML = '<div class="empty">暂无内容</div>';
+    return;
+  }
+  list.innerHTML = items.map(item => `
+    <article class="feed-item ${item.is_read ? 'read' : 'unread'}">
+      <div class="item-head">
+        <span class="tag">${escapeHtml(item.source_name)}</span>
+        <a class="item-title" href="${attr(item.url)}" target="_blank" rel="noopener" onclick="markRead(${item.id}, true)">${escapeHtml(item.title)}</a>
+      </div>
+      <div class="meta"><span>${fmtDate(item.published_at || item.fetched_at)}</span>${item.ai_summary ? '<span>中文简介</span>' : ''}</div>
+      <div class="summary">${escapeHtml(item.ai_summary || item.summary || '')}</div>
+      <div class="actions">
+        <button onclick="markRead(${item.id}, ${!item.is_read})">${item.is_read ? '标为未读' : '标为已读'}</button>
+        <button onclick="toggleStar(${item.id}, ${!item.is_starred})">${item.is_starred ? '取消收藏' : '收藏'}</button>
+      </div>
+    </article>
+  `).join('');
+}
+
+async function markRead(id, read) {
+  await fetchJSON(`${API}/items/${id}/${read ? 'read' : 'unread'}`, { method: 'POST' });
+  await loadFeed();
+}
+
+async function toggleStar(id, starred) {
+  await fetchJSON(`${API}/items/${id}/${starred ? 'star' : 'unstar'}`, { method: 'POST' });
+  await loadFeed();
+}
+
+async function backfillSummaries(button) {
+  setBusy(button, true, '中文化中');
+  try {
+    const data = await fetchJSON(`${API}/summaries/backfill`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: 300 })
+    });
+    const result = data.result || {};
+    toast(`已中文化 ${result.updated || 0} 条，跳过 ${result.skipped || 0} 条`);
+    await loadFeed();
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function importCandidate() {
+  const title = $('import-title').value.trim();
+  if (!title) {
+    toast('请填写标题');
+    return;
+  }
+  const payload = {
+    title,
+    url: $('import-url').value.trim(),
+    summary: $('import-summary').value.trim(),
+    content: $('import-content').value.trim(),
+    media_urls: $('import-media').value.split('\n').map(v => v.trim()).filter(Boolean)
+  };
+  await fetchJSON(`${API}/candidates/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  ['import-title', 'import-url', 'import-summary', 'import-content', 'import-media'].forEach(id => $(id).value = '');
+  toast('已导入并完成初筛');
+  await loadReview();
+}
+
+async function loadReview() {
+  await Promise.all([loadClusters(), loadCandidates(), loadStats(), loadDeepSeekSettings()]);
+}
+
+async function loadClusters() {
+  const status = $('cluster-status').value;
+  const category = $('cluster-category').value;
+  let url = `${API}/clusters?limit=200`;
+  if (status) url += `&status=${encodeURIComponent(status)}`;
+  if (category) url += `&category=${encodeURIComponent(category)}`;
+  const data = await fetchJSON(url);
+  clusters = data.clusters || [];
+  renderClusters(clusters);
+}
+
+function renderClusters(items) {
+  const list = $('cluster-list');
+  if (!items.length) {
+    list.innerHTML = '<div class="empty">暂无事件</div>';
+    return;
+  }
+  list.innerHTML = items.map(cluster => {
+    const links = (cluster.sources || []).slice(0, 4).map(source => {
+      const label = source.source_name || '来源';
+      const url = source.url || '';
+      return url ? `<a href="${attr(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>` : `<span>${escapeHtml(label)}</span>`;
+    }).join('');
+    const risks = (cluster.risk_flags || []).map(flag => `<span class="tag">${escapeHtml(flag)}</span>`).join('');
+    const providers = [...new Set((cluster.sources || []).map(source => providerLabel(source.analysis_provider)).filter(Boolean))];
+    const providerText = providers.length ? providers.join(' / ') : '规则';
+    return `
+      <article class="cluster-item">
+        <div class="cluster-body">
+          <div>
+            <div class="item-head">
+              <span class="tag category">${escapeHtml(cluster.category)}</span>
+              <span class="status ${cluster.status}">${statusLabel(cluster.status)}</span>
+              <span class="score ${scoreClass(cluster.score)}">${cluster.score}</span>
+              <span class="tag analysis-badge ${providerText.includes('DeepSeek') ? 'deepseek' : 'rule'}">${escapeHtml(providerText)}</span>
+            </div>
+            <div class="item-title">${escapeHtml(cluster.selected_title || cluster.title)}</div>
+            <div class="summary">${escapeHtml(cluster.summary || '')}</div>
+            <div class="meta">${(cluster.keywords || []).slice(0, 8).map(k => `<span>${escapeHtml(k)}</span>`).join('')}</div>
+            <div class="meta">${risks || '<span>无明显风险</span>'}<span>信心 ${cluster.confidence || 0}</span></div>
+            <div class="edit-grid">
+              <input id="title-${cluster.id}" value="${attr(cluster.selected_title || cluster.title)}">
+              <select id="category-${cluster.id}">${categoryOptions(cluster.category)}</select>
+            </div>
+            <div class="field" style="margin-top:8px">
+              <textarea id="draft-${cluster.id}">${escapeHtml(cluster.draft_body || '')}</textarea>
+            </div>
+            <div class="actions">
+              <button onclick="saveCluster(${cluster.id})">保存</button>
+              <button onclick="setClusterStatus(${cluster.id}, 'selected')" class="primary">入选</button>
+              <button onclick="setClusterStatus(${cluster.id}, 'candidate')">候选</button>
+              <button onclick="setClusterStatus(${cluster.id}, 'ignored')" class="danger">忽略</button>
+            </div>
+          </div>
+          <aside>
+            <h3>来源</h3>
+            <div class="source-list">${links || '<span class="notice">暂无链接</span>'}</div>
+            <h3 style="margin-top:14px">判断依据</h3>
+            <div class="summary">${escapeHtml(cluster.score_reason || '')}</div>
+            <div class="summary">${escapeHtml(cluster.merge_reason || '')}</div>
+            ${renderBreakdown(cluster.score_breakdown)}
+          </aside>
+        </div>
+      </article>
+    `;
+  }).join('');
+}
+
+function categoryOptions(selected) {
+  return categories.map(category => `<option value="${attr(category)}" ${category === selected ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('');
+}
+
+async function saveCluster(id) {
+  await fetchJSON(`${API}/clusters/${id}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      selected_title: $(`title-${id}`).value.trim(),
+      category: $(`category-${id}`).value,
+      draft_body: $(`draft-${id}`).value.trim()
+    })
+  });
+  toast('已保存');
+  await loadReview();
+}
+
+async function setClusterStatus(id, status) {
+  await fetchJSON(`${API}/clusters/${id}/status`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+  toast(`已标记为${statusLabel(status)}`);
+  await loadReview();
+}
+
+async function loadCandidates() {
+  const data = await fetchJSON(`${API}/candidates?limit=80`);
+  const candidates = data.candidates || [];
+  const list = $('candidate-list');
+  if (!candidates.length) {
+    list.innerHTML = '<div class="empty">暂无原始候选</div>';
+    return;
+  }
+  list.innerHTML = candidates.map(candidate => `
+    <article class="candidate-item">
+      <div class="item-head">
+        <span class="tag">${escapeHtml(candidate.source_name)}</span>
+        <span class="tag category">${escapeHtml(candidate.category)}</span>
+        <span class="score ${scoreClass(candidate.score)}">${candidate.score}</span>
+        <span class="tag analysis-badge ${candidate.analysis_provider === 'deepseek' ? 'deepseek' : 'rule'}">${providerLabel(candidate.analysis_provider)}</span>
+      </div>
+      <div class="item-title">${escapeHtml(candidate.title)}</div>
+      <div class="meta"><span>中文简介</span></div>
+      <div class="summary">${escapeHtml(candidate.ai_summary || candidate.summary || '')}</div>
+      <div class="meta"><span>${escapeHtml(candidate.dedupe_note || '')}</span><span>${fmtDate(candidate.collected_at)}</span><span>${escapeHtml(candidate.analysis_version || '')}</span></div>
+      <div class="meta">${(candidate.keywords || []).slice(0, 8).map(k => `<span>${escapeHtml(k)}</span>`).join('')}</div>
+      <div class="summary">${escapeHtml(candidate.canonical_url || candidate.url || '')}</div>
+      ${candidate.analysis_error ? `<div class="error-text">${escapeHtml(candidate.analysis_error)}</div>` : ''}
+      <div class="actions">
+        <button onclick="reanalyzeCandidate(${candidate.id})">重分析</button>
+      </div>
+    </article>
+  `).join('');
+}
+
+async function reanalyzeCandidate(id) {
+  await fetchJSON(`${API}/candidates/${id}/reanalyze`, { method: 'POST' });
+  toast('已完成单条重分析');
+  await loadReview();
+}
+
+async function runBatchAnalysis(scope, button) {
+  setBusy(button, true, '分析中');
+  try {
+    const data = await fetchJSON(`${API}/analysis-runs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope, limit: 80 })
+    });
+    const result = data.result || {};
+    toast(`已重分析 ${result.processed || 0} 条`);
+    await loadReview();
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function rebuildClusters(button) {
+  setBusy(button, true, '重聚合中');
+  try {
+    const data = await fetchJSON(`${API}/clusters/rebuild`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ limit: 500, reanalyze: false })
+    });
+    const result = data.result || {};
+    toast(`已重聚合 ${result.processed || 0} 条`);
+    await loadReview();
+  } finally {
+    setBusy(button, false);
+  }
+}
+
+async function loadIssueView() {
+  if (!$('issue-date').value) $('issue-date').value = new Date().toISOString().slice(0, 10);
+  const selected = await fetchJSON(`${API}/clusters?selected_only=true&limit=100`);
+  renderSelected(selected.clusters || []);
+  await loadIssues();
+  await loadStats();
+}
+
+function renderSelected(items) {
+  const list = $('selected-list');
+  if (!items.length) {
+    list.innerHTML = '<div class="empty">暂无入选事件</div>';
+    return;
+  }
+  const grouped = {};
+  items.forEach(item => {
+    if (!grouped[item.category]) grouped[item.category] = [];
+    grouped[item.category].push(item);
+  });
+  list.innerHTML = Object.keys(grouped).map(category => `
+    <section class="issue-item">
+      <h3>${escapeHtml(category)} · ${grouped[category].length}</h3>
+      ${grouped[category].map(item => `<div class="meta"><span class="score ${scoreClass(item.score)}">${item.score}</span><span>${escapeHtml(item.selected_title || item.title)}</span></div>`).join('')}
+    </section>
+  `).join('');
+}
+
+async function generateIssue() {
+  const issueDate = $('issue-date').value || new Date().toISOString().slice(0, 10);
+  const data = await fetchJSON(`${API}/issues/today/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ issue_date: issueDate })
+  });
+  const exports = data.exports || {};
+  $('export-result').innerHTML = `
+    <div class="export-box">
+      <strong>${escapeHtml(data.issue.title)}</strong>
+      <div class="notice">成稿：${escapeHtml(draftProviderLabel(exports.draft_provider))}${(exports.draft_models || []).length ? ' · ' + escapeHtml((exports.draft_models || []).join(' / ')) : ''}</div>
+      ${(exports.draft_errors || []).length ? `<div class="error-text">${escapeHtml((exports.draft_errors || []).slice(0, 2).join('；'))}</div>` : ''}
+      <div><a href="${attr(exports.html_url)}" target="_blank" rel="noopener">打开 HTML 日报</a></div>
+      <div><a href="${attr(exports.markdown_url)}" target="_blank" rel="noopener">打开 Markdown</a></div>
+      <div class="notice">${escapeHtml(exports.html_path || '')}</div>
+    </div>
+  `;
+  toast('日报已生成');
+  await loadIssueView();
+}
+
+function draftProviderLabel(provider) {
+  return {
+    deepseek: 'DeepSeek',
+    mixed: 'DeepSeek + 规则降级',
+    rule: '规则',
+    none: '无内容'
+  }[provider] || provider || '规则';
+}
+
+async function loadIssues() {
+  const data = await fetchJSON(`${API}/issues?limit=20`);
+  const issues = data.issues || [];
+  const list = $('issue-list');
+  if (!issues.length) {
+    list.innerHTML = '<div class="empty">暂无历史日报</div>';
+    return;
+  }
+  list.innerHTML = issues.map(issue => `
+    <article class="issue-item">
+      <div class="item-head">
+        <span class="tag">第 ${issue.issue_no} 期</span>
+        <span class="status">${escapeHtml(issue.status)}</span>
+      </div>
+      <div class="item-title">${escapeHtml(issue.title)}</div>
+      <div class="meta"><span>${escapeHtml(issue.issue_date)}</span><span>${fmtDate(issue.updated_at)}</span></div>
+      <div class="actions">
+        ${issue.html_url ? `<a href="${attr(issue.html_url)}" target="_blank" rel="noopener"><button>HTML</button></a>` : ''}
+        ${issue.markdown_url ? `<a href="${attr(issue.markdown_url)}" target="_blank" rel="noopener"><button>Markdown</button></a>` : ''}
+      </div>
+    </article>
+  `).join('');
+}
+
+function connectSSE() {
+  const status = $('conn-status');
+  const eventSource = new EventSource(`${API}/sse`);
+  eventSource.onopen = () => status.className = 'connected';
+  eventSource.onerror = () => status.className = 'error';
+  eventSource.onmessage = event => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'new_items') {
+      toast(`收到 ${data.items.length} 条新内容`);
+      loadFeed();
+    }
+  };
+}
+
+(async function init() {
+  try {
+    await loadSources();
+    await loadDeepSeekSettings();
+    await loadStats();
+    await loadFeed();
+    $('issue-date').value = new Date().toISOString().slice(0, 10);
+    connectSSE();
+  } catch (error) {
+    toast(`加载失败：${error.message}`);
+  }
+})();
+</script>
+</body>
+</html>
