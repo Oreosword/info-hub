@@ -2,13 +2,14 @@
 """Smoke-test a running Info Hub service without extra test dependencies."""
 
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
 from typing import Tuple
 
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.environ.get("INFO_HUB_BASE_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
 def fetch(path: str) -> Tuple[int, str]:

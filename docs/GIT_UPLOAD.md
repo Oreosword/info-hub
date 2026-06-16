@@ -20,7 +20,7 @@
 git status --short
 git add .
 git status --short
-git commit -m "Release v0.1.0"
+git commit -m "Release v0.1.1"
 ```
 
 提交前确认 `git status --short` 里没有：
@@ -36,10 +36,17 @@ git commit -m "Release v0.1.0"
 启动服务后运行：
 
 ```bash
+python -m pytest tests -q
 python scripts/smoke_test.py
 ```
 
 看到 `[smoke] OK` 后再提交。
+
+发布前也请检查：
+
+```text
+docs/RELEASE_CHECKLIST.md
+```
 
 ## 恢复本地数据
 

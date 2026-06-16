@@ -78,7 +78,8 @@ async def on_startup():
     config.ensure_defaults()
     schedule_all()
     scheduler_start()
-    asyncio.create_task(_initial_fetch())
+    if os.environ.get("INFO_HUB_SKIP_INITIAL_FETCH") != "1":
+        asyncio.create_task(_initial_fetch())
     url = "http://127.0.0.1:8000"
     print(f"[startup] AI Hub ready at {url}")
     if getattr(sys, "frozen", False) or os.environ.get("INFO_HUB_OPEN_BROWSER") == "1":

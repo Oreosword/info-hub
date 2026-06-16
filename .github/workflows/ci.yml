@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "codex/**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+
+      - name: Compile Python files
+        run: |
+          python -m py_compile \
+            start.py \
+            src/app_info.py \
+            src/config.py \
+            src/core_logic.py \
+            src/database.py \
+            src/deepseek_client.py \
+            src/ai_workflow.py \
+            src/workflow.py \
+            src/daily_renderer.py \
+            src/scheduler.py \
+            src/main.py \
+            src/routers/api.py \
+            src/routers/serializers.py \
+            src/routers/sse.py \
+            src/fetchers/rss.py \
+            src/fetchers/github.py \
+            src/fetchers/hackernews.py \
+            src/fetchers/arxiv.py \
+            src/fetchers/summarizer.py \
+            scripts/smoke_test.py
+
+      - name: Run unit tests
+        run: python -m pytest tests -q
+
+      - name: Start service for smoke test
+        env:
+          INFO_HUB_DB_PATH: ${{ runner.temp }}/infohub-ci.db
+          INFO_HUB_SKIP_INITIAL_FETCH: "1"
+          NO_PROXY: "*"
+          no_proxy: "*"
+        run: |
+          python src/main.py &
+          for i in {1..30}; do
+            if python - <<'PY'
+import json
+import urllib.request
+
+try:
+    with urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=2) as response:
+        data = json.loads(response.read().decode("utf-8"))
+    raise SystemExit(0 if data.get("status") == "ok" else 1)
+except Exception:
+    raise SystemExit(1)
+PY
+            then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - name: Run smoke test
+        env:
+          INFO_HUB_BASE_URL: http://127.0.0.1:8000
+          NO_PROXY: "*"
+          no_proxy: "*"
+        run: python scripts/smoke_test.py
