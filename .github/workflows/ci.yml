@@ -56,7 +56,6 @@ jobs:
           INFO_HUB_DB_PATH: ${{ runner.temp }}/infohub-ci.db
           INFO_HUB_SKIP_INITIAL_FETCH: "1"
           NO_PROXY: "*"
-          no_proxy: "*"
         run: |
           python src/main.py &
           for i in {1..30}; do
@@ -71,5 +70,4 @@ jobs:
         env:
           INFO_HUB_BASE_URL: http://127.0.0.1:8000
           NO_PROXY: "*"
-          no_proxy: "*"
         run: python scripts/smoke_test.py
